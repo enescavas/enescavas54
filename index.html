@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+  <head>
+
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+      <meta http-equiv="X-UA-COMPATIBLE" content="IE=edge">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.css" />
+    <link rel="stylesheet" type="text/css" href="css/bootstrap-theme.css">
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+
+      <title>Socket.IO chat</title>
+      <script  src="../js/jquery-1.9.1.js"></script>
+      <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+      <script type="text/javascript" src="js/bootstrap.js"></script>
+      <script  src="../js/socket.io-1.2.0.js"></script>
+      <script >
+          $(document).ready(function()
+          {
+              $('#ana2').hide();
+              $('#mesajVeKullanici').hide();
+              $('#yazilanMesajlarVeDuyurular').hide();
+              var socket = io.connect('http://localhost:8000');
+              var adi;
+              $('#login').click(function(){
+                  adi=$('#name').val();
+                  $("#useeer").text(adi);
+                  socket.emit('chat message',adi);
+                  $("#ana").remove();
+                  $('#ana2').show();
+                  $('#mesajVeKullanici').show();
+                  $('#yazilanMesajlarVeDuyurular').show();
+
+                  socket.emit('ddd',adi);
+                  socket.emit('KullnicilariListele',adi);
+                  socket.emit("güncelle",adi);
+                  socket.emit("offlinemessage",adi);
+
+                  return false;
+              });
+              socket.on('ntf',function(data){
+                  $('#duyurular').empty();
+                  for(var i=0;i<=data.Duyurular.duyuru.length;i++) {
+                      $('#duyurular').append(($('<li>').text(data.Duyurular.duyuru[i].duyuruNo+"-"+data.Duyurular.duyuru[i].duyuruAyrinti)));
+                  }
+              });
+              socket.on('notification', function (data) {
+                  $('#duyurular').empty();
+                  for(var i=0;i<=data.Duyurular.duyuru.length;i++) {
+                      $('#duyurular').append(($('<li>').text(data.Duyurular.duyuru[i].duyuruNo+"-"+data.Duyurular.duyuru[i].duyuruAyrinti)));
+                  }
+              });
+              socket.on("gncl",function(msg){
+                  var  tbl="<li style='color: #008800' id='"+ msg  +"'"+">"+"<input type='checkbox' class='chkbox'  value="+msg+">"+msg+"</li>";
+                  $('#kullanicilar').append(tbl);
+              });
+              socket.on('KullnicilariListele',function(msq2){
+
+                  var tbl=
+                          $.each(msq2,function(key,value){
+                              if(value.durum==0) {
+                                  tbl = "<li style='color: #cc0000' id='"+ value.kullaniciadi  +"'"+">"+"<input type='checkbox'  class='chkbox' value=" + value.kullaniciadi + " >" + value.kullaniciadi + "</li>";
+                                  $('#kullanicilar').append(tbl);
+                              }
+                              else{
+                                  tbl = "<li style='color: #008800'id='"+ value.kullaniciadi  +"'"+">"+"<input type='checkbox'  class='chkbox' value=" + value.kullaniciadi + " >" + value.kullaniciadi + "</li>";
+                                  $('#kullanicilar').append(tbl);
+                              }
+                          });
+              });
+
+              $('#gonder').click(function(){
+                  var sec=0;
+                  var mesaj=$('#m').val();
+				  $('#m').val('');
+
+                  var checkboxarray=[];
+                  $('.chkbox:checked').each(function(){
+                      sec++;
+                     checkboxarray.push($(this).val());
+                  });
+
+                  if(sec==1){
+                    socket.emit("private",checkboxarray[0],mesaj,adi);
+                      $('#messages').append($('<li>').text(adi+" -> "+checkboxarray[0] +"  :  "+mesaj));
+                      $('#messagesOzel').append($('<li>').text(adi+" -> "+checkboxarray[0] +"  :  "+mesaj));
+
+                  }
+                  else if(sec>1)
+                  {
+                      socket.emit("group",checkboxarray,mesaj,adi);
+                      $('#messages').append($('<li>').text(adi+" -> "+checkboxarray +"  :  "+mesaj));
+                      $('#messagesGroup').append($('<li>').text(adi+" -> "+checkboxarray +"  :  "+mesaj));
+                  }
+                  else{
+                      socket.emit('chatmesajyolla', mesaj, adi);
+
+                  }
+                  return false;
+              });
+              socket.on('whisper',function(msg,msg1,msg2){
+                  $('#messages').append($('<li>').text(msg1+" -> "+msg2+"  :  "+msg));
+                  $('#messagesGroup').append($('<li>').text(msg1+" -> "+msg2 +"  :  "+msg));
+
+              });
+              socket.on('whisper1',function(msg,msg1,msg2){
+                  $('#messages').append($('<li>').text(msg1+" -> "+msg2+"  :  "+msg));
+                  $('#messagesOzel').append($('<li>').text(msg1+" -> "+msg2 +"  :  "+msg));
+
+              });
+              socket.on('ofmessage',function(al){
+                  var tbl=
+                          $.each(al,function(key,value){
+                              $('#messages').append($('<li>').text(value.gonderen+" -> "+adi +"  :  "+value.mesaj));
+                              $('#messagesOff').append($('<li>').text(value.gonderen+" -> "+adi +"  :  "+value.mesaj));
+                              $('#kullanicilar').append(tbl);
+                          });
+              });
+              socket.on('chatmesajyolla', function(msg,add,all){
+                  $('#messages').append($('<li>').text(add+" -> "+all+"  :  "+msg));
+                  $('#messagesBroad').append($('<li>').text(add+" -> "+all+"  :  "+msg));
+              });
+             socket.on("kapatma", function (msg) {
+                 $("#"+msg).css({color:'#cc0000'});
+              });
+              socket.on("opennn", function (msg) {
+                  $("#"+msg).css({color:'#008800'});
+              });
+              $('#exit').click(function(){
+                  socket.emit("kapat",adi);
+
+                  socket.disconnect();
+                  $('#ana2').remove();
+                  $('#mesajVeKullanici').remove();
+                  $('#yazilanMesajlarVeDuyurular').remove();
+                    return false;
+              });
+              /*window.onbeforeunload = function(){
+                  socket.emit("kapat",adi);
+
+                  socket.disconnect();
+                  $('#ana2').remove();
+                  $('#mesajVeKullanici').remove();
+                  return "sayfadan çıkıyorsunuz";
+              }*/
+
+          });
+
+      </script>
+  </head>
+  <body>
+    <div id="menu" class="navbar navbar-inverse navbar-static-top" >
+        <div class="container">
+            <a class="navbar-brand">Chat Programı</a>
+        </div>
+    </div>
+
+    <div id="ana">
+        <form id="slick-login" style="margin-bottom: 100px">
+            <label for="username">username</label>
+            <input id="name" type="text" name="username" class="placeholder" placeholder="kullanıcı adı">
+            <input type="submit" value="Giriş Yap" id="login">
+        </form>
+    </div>
+
+
+    <div class="container" id="mesajVeKullanici">
+	
+        <br>
+        <div class="row">
+            <!--Mesaj Alanı Başladı-->
+            <div class="col-lg-9 col-md-3 col-sm-4">
+                <div class="col-lg-3 col-md-3 col-sm-4 list-group nav-tabs ">
+                    <a  class="list-group-item active" href="#broadcast"  data-toggle="tab">Broadcast Mesajlar</a>
+                    <a class="list-group-item" href="#grup" data-toggle="tab">Grup Mesajlar</a>
+                    <a class="list-group-item" href="#offline" data-toggle="tab">Offline Mesajlar</a>
+                    <a class="list-group-item" href="#ozel" data-toggle="tab">Özel Mesajlar</a>
+                </div>
+				
+                <div class="list-group col-lg-9 col-md-9 col-sm-8">
+                    <!-- Tab panes başladı -->
+                    <div class="tab-content">
+                        <div class=" tab-pane fade in active" id="broadcast">
+                            <div>
+                                <p class="text-success list-group-item" style="text-align: center">Broadcast Mesajlar<span class="glyphicon glyphicon-comment"></span></p>
+                                <ul class="list-group-item" id="messagesBroad" style="height: 125px; overflow: scroll"></ul>
+                            </div>
+                        <hr style="margin:0;/">
+                        </div>
+                        <div class="tab-pane fade " id="grup">
+                            <div>
+                                <p class="text-success list-group-item" style="text-align: center">Grup Mesajlar<span class="glyphicon glyphicon-comment"></span></p>
+                                <ul class="list-group-item" id="messagesGroup"  style="height: 125px; overflow: scroll" ></ul>
+                            </div>
+                        <hr style="margin:0;/">
+                        </div>
+                        <div class=" tab-pane fade" id="offline">
+                            <div>
+                                <p class="text-success list-group-item" style="text-align: center">Offline Mesajlar<span class="glyphicon glyphicon-comment"></span></p>
+                                <ul class="list-group-item" id="messagesOff"  style="height: 125px; overflow: scroll"></ul>
+                            </div>
+                            <hr style="margin:0;/">
+                        </div>
+                        <div class="tab-pane fade " id="ozel">
+                            <div>
+                                <p class="text-success list-group-item" style="text-align: center">Özel Mesajlar<span class="glyphicon glyphicon-comment"></span></p>
+                                <ul class="list-group-item" id="messagesOzel" style="height: 125px; overflow: scroll"></ul>
+                            </div>
+                            <hr style="margin:0;/">
+                        </div>
+
+                    </div>
+                    <!-- Tab panes  bitti -->
+                </div>
+            </div>
+            <!--Mesaj Alanı Bitti-->
+
+
+            <!--KullanıcıListe Alanı Başladı-->
+			<div  class="col-lg-3 col-md-9 col-sm-8"  >
+                <form style="background-color: #f5f5f5">
+                    <p class="text-danger" style="text-align: center; font-style: italic;">Duyurular<span class="glyphicon glyphicon-pushpin"> </span></p>
+                    <div id="duyuru">
+                        <marquee style="overflow: scroll" scrollamount="1" direction="up"  scrolldelay="1"><ul id="duyurular" style="height: 134px; width: 99%;"></ul></marquee>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+            
+    <!--Yazılan Mesajlar Alanı Başladı-->
+    <div class="container" id="yazilanMesajlarVeDuyurular">
+
+        <br>
+        <div class="row">
+            <div  class="col-lg-9 col-md-3 col-sm-4"  >
+                <div class="col-lg-3 col-md-3 col-sm-4 ">
+                </div>
+               <div class="list-group col-lg-9 col-md-9 col-sm-8">
+                    <p class="text-success list-group-item" style="text-align: center">Mesajlar<span class="glyphicon glyphicon-comment"></span></p>
+                    <ul class="list-group-item" id="messages" style="height: 200px; width: 100%;overflow: scroll"></ul>
+                </div>
+            </div>
+<div  class="col-lg-3 col-md-9 col-sm-8"  >
+                    <form style="background-color: #f5f5f5">
+                        <p class="text-primary" style="text-align: center; font-style: italic;">Kullanicilar<span class="glyphicon glyphicon-user"> </span></p>
+                        <ul  id="kullanicilar" style="height: 134px; width: 99%; overflow: scroll"></ul>
+                    </form>
+            </div>
+            <!--KullanıcıListe Alanı Bitti-->
+        </div>
+
+    </div>
+            
+
+    <!--Yazılan Mesajlar Alanı Bitti-->
+	
+
+    <div id="ana2">
+        <form id="sendForm" action="" style="padding: 3px; position: fixed; bottom: 0; width: 100%;">
+            <p style=" font-size: 23px; width: 50%; height: 30px; border: 1px solid #000000; background-color: #39C7DC" id="useeer" class="text-success glyphicon glyphicon-hand-right"></p><br>
+            <input id="m" autocomplete="off" style="border: 0; padding: 10px; width: 80%; margin-right: .5%;" />
+            <button id="gonder" class="btn  btn-default" style="width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px;">Gönder</button>
+            <button id="exit" class="btn  btn-default" style="width: 9%; background: rgb(255,50,40); border: none; padding: 10px;">Çıkış</button>
+        </form>
+    </div>
+
+
+  </body>
+</html>
